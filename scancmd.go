@@ -4,12 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/google/subcommands"
 	"github.com/malice-plugins/go-plugin-utils/utils"
 )
 
 type scanCmd struct {
+	db string
+	to string
 }
 
 func (p *scanCmd) Name() string {
@@ -25,6 +28,8 @@ func (p *scanCmd) Usage() string {
 }
 
 func (p *scanCmd) SetFlags(f *flag.FlagSet) {
+	f.StringVar(&p.db, "d", "", "set database dir")
+	f.StringVar(&p.to, "t", "60s", "set timeout")
 }
 
 func (p *scanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -33,10 +38,24 @@ func (p *scanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 		fmt.Println("target dir is must")
 		return subcommands.ExitUsageError
 	}
-	var params []string
-	params = append(params, "scan")
-	params = append(params, dirs...)
-	ctx := context.TODO()
-	fmt.Println(utils.RunCommand(ctx, "hmb", params...))
+	clam, err := NewClamAV(p.db, false)
+	if err != nil {
+		fmt.Println("ERROR:", err)
+		return subcommands.ExitFailure
+	}
+	to, _ := time.ParseDuration(p.to)
+	ctx, cancel := context.WithTimeout(context.TODO(), to)
+	defer cancel()
+	outChan := clam.ScanDir(dirs, ctx)
+	var results []ClamAVResult
+	for {
+		r, ok := outChan
+		if !ok {
+			break
+		}
+		results = append(results, v)
+	}
+	//TODO:
+
 	return subcommands.ExitSuccess
 }

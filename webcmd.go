@@ -13,6 +13,8 @@ type webCmd struct {
 	port   int
 	fileto string
 	zipto  string
+
+	clamav *ClamAV
 }
 
 func (p *webCmd) Name() string {

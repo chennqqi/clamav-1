@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,6 +19,7 @@ import (
 type Web struct {
 	fileto time.Duration
 	zipto  time.Duration
+	clav   *ClamAV
 }
 
 func (s *Web) version(c *gin.Context) {
@@ -58,8 +60,7 @@ func (s *Web) scanFile(c *gin.Context) {
 	io.Copy(f, src)
 	f.Close()
 
-	r, _ := hmScanDir(f.Name(), to)
-	//TODO: call hm scan dir
+	r, _ := scanDir(f.Name(), to)
 	c.JSON(200, r)
 }
 
@@ -175,12 +176,23 @@ func (s *Web) scanZip(c *gin.Context) {
 		return
 	}
 	//TODO:
-	r, err := hmScanDir(tmpDir, to)
+	r, _ := hmScanDir(tmpDir, to)
 	c.JSON(200, r)
 }
 
-func hmScanDir(dir string, to time.Duration) (string, error) {
+func (s *Web) scanDir(dir string, to time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), to)
 	defer cancel()
-	return utils.RunCommand(ctx, "hmb", "call", dir)
+	clav := s.clav
+	clav.ScanDir(dir, ctx)
+	var results []ClamAVResult
+	for {
+		r, ok := outChan
+		if !ok {
+			break
+		}
+		results = append(results, v)
+	}
+	txt, err := json.Marshal(results)
+	return string(txt), err
 }
