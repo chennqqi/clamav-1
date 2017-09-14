@@ -22,6 +22,7 @@ _testmain.go
 *.exe
 *.test
 *.prof
+clamav-docker
 
 *.bu
 .circleci/build_num

@@ -9,7 +9,7 @@ import (
 )
 
 // Version stores the plugin's version
-var Version string
+var Version = "1.0.0 alpha" 
 
 // BuildTime stores the plugin's build time
 var BuildTime string

@@ -1,24 +1,13 @@
-FROM malice/alpine
+FROM docker.ffan.nslookup.site/malice
 
-LABEL maintainer "https://github.com/blacktop"
+LABEL maintainer "https://github.com/chennqqi"
 
-LABEL malice.plugin.repository = "https://github.com/malice-plugins/clamav.git"
+LABEL malice.plugin.repository = "https://github.com/chennqqi/clamav-docker.git"
 LABEL malice.plugin.category="av"
 LABEL malice.plugin.mime="*"
 LABEL malice.plugin.docker.engine="*"
 
-COPY . /go/src/github.com/malice-plugins/clamav
-RUN apk --update add --no-cache clamav ca-certificates
-RUN apk --update add --no-cache -t .build-deps \
-                    build-base \
-                    mercurial \
-                    musl-dev \
-                    openssl \
-                    bash \
-                    wget \
-                    git \
-                    gcc \
-                    go \
+COPY . /go/src/github.com/chennqqi/clamav-docker
   && echo "Building avscan Go binary..." \
   && cd /go/src/github.com/malice-plugins/clamav \
   && export GOPATH=/go \

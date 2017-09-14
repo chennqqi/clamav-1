@@ -135,6 +135,7 @@ func (c *ClamAV) ScanDir(dir string, ctx context.Context) <-chan *ClamAVResult {
 
 				if fi.Mode().IsRegular() {
 					r, err := c.ScanFile(filename)
+					logrus.Println(filename, " ", r, " ", err)
 					if err == nil && r != "" {
 						outChn <- &ClamAVResult{
 							FilePath: filename,

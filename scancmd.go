@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"time"
 
 	"github.com/google/subcommands"
-	"github.com/malice-plugins/go-plugin-utils/utils"
+	//"github.com/malice-plugins/go-plugin-utils/utils"
 )
 
 type scanCmd struct {
@@ -33,7 +34,7 @@ func (p *scanCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (p *scanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	dirs := flag.Args()
+	dirs := f.Args()
 	if len(dirs) == 0 {
 		fmt.Println("target dir is must")
 		return subcommands.ExitUsageError
@@ -46,16 +47,19 @@ func (p *scanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 	to, _ := time.ParseDuration(p.to)
 	ctx, cancel := context.WithTimeout(context.TODO(), to)
 	defer cancel()
-	outChan := clam.ScanDir(dirs, ctx)
-	var results []ClamAVResult
+
+	outChan := clam.ScanDir(dirs[0], ctx)
+	var results []*ClamAVResult
 	for {
-		r, ok := outChan
+		r, ok := <-outChan
 		if !ok {
 			break
 		}
-		results = append(results, v)
+		results = append(results, r)
 	}
 	//TODO:
+	txt, _ := json.Marshal(results)
+	fmt.Println(string(txt))
 
 	return subcommands.ExitSuccess
 }

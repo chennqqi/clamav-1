@@ -60,7 +60,7 @@ func (s *Web) scanFile(c *gin.Context) {
 	io.Copy(f, src)
 	f.Close()
 
-	r, _ := scanDir(f.Name(), to)
+	r, _ := s.scanDir(f.Name(), to)
 	c.JSON(200, r)
 }
 
@@ -176,7 +176,7 @@ func (s *Web) scanZip(c *gin.Context) {
 		return
 	}
 	//TODO:
-	r, _ := hmScanDir(tmpDir, to)
+	r, _ := s.scanDir(tmpDir, to)
 	c.JSON(200, r)
 }
 
@@ -184,14 +184,14 @@ func (s *Web) scanDir(dir string, to time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(context.TODO(), to)
 	defer cancel()
 	clav := s.clav
-	clav.ScanDir(dir, ctx)
-	var results []ClamAVResult
+	outChan := clav.ScanDir(dir, ctx)
+	var results []*ClamAVResult
 	for {
-		r, ok := outChan
+		r, ok := <-outChan
 		if !ok {
 			break
 		}
-		results = append(results, v)
+		results = append(results, r)
 	}
 	txt, err := json.Marshal(results)
 	return string(txt), err
