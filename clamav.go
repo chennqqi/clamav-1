@@ -20,8 +20,6 @@ import (
 	"github.com/mirtchovski/clamav"
 )
 
-type ClamAVResult ClamLiteResult
-
 type ClamAVResult struct {
 	Name  string `json:"name"`
 	Virus string `json:"virus"`
@@ -80,6 +78,7 @@ func (c *ClamAV) hashCb(fd int, size uint64, md5 []byte, virname string, context
 		pAr := context.(*ClamAVResult)
 		if pAr.Hash == "" {
 			pAr.Hash = string(md5)
+			pAr.Size = int64(size)
 		}
 	}
 
@@ -118,27 +117,28 @@ func (c *ClamAV) ScanMem(mem []byte) (*ClamAVResult, error) {
 	fmap := clamav.OpenMemory(mem)
 	defer clamav.CloseMemory(fmap)
 	engine := c.engine
+	ar := new(ClamAVResult)
 
-	virus, _, err := engine.ScanMapCb(fmap, clamav.ScanStdopt|clamav.ScanAllmatches, "eicar memorytest")
+	virus, _, err := engine.ScanMapCb(fmap, clamav.ScanStdopt|clamav.ScanAllmatches, ar)
 	if virus != "" {
-		return virus, nil
+		return ar, nil
 	} else if err != nil {
 		logrus.Error("[security:ClamavScanFile] error ", err)
 	}
-	return "", err
+	return ar, err
 }
 
 func (c *ClamAV) ScanFile(filename string) (*ClamAVResult, error) {
 	engine := c.engine
 	ar := new(ClamAVResult)
-	ar.name = filename
+	ar.Name = filename
 	virus, _, err := engine.ScanFileCb(filename, clamav.ScanStdopt|clamav.ScanAllmatches, ar)
 	if virus != "" {
-		return virus, nil
+		return ar, nil
 	} else if err != nil {
 		logrus.Error("[security:ClamavScanFile] error ", err)
 	}
-	return "", err
+	return nil, err
 }
 
 func (c *ClamAV) ScanDir(dir string, ctx context.Context) <-chan *ClamAVResult {
@@ -155,12 +155,9 @@ func (c *ClamAV) ScanDir(dir string, ctx context.Context) <-chan *ClamAVResult {
 				}
 
 				if fi.Mode().IsRegular() {
-					logrus.Println(filename, " ", r, " ", err)
-					if err == nil && r != "" {
-						outChn <- &ClamAVResult{
-							FilePath: filename,
-							Result:   r,
-						}
+					ar, err := c.ScanFile(filename)
+					if err == nil && ar != nil {
+						outChn <- ar
 					}
 				}
 				return nil
