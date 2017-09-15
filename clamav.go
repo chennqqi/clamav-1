@@ -22,6 +22,13 @@ import (
 
 type ClamAVResult ClamLiteResult
 
+type ClamAVResult struct {
+	Name  string `json:"name"`
+	Virus string `json:"virus"`
+	Hash  string `json:"hash"`
+	Size  int64  `json:"size"`
+}
+
 // Workers receive file names on 'in', scan them, and output the results on 'out'
 
 type clamavCb interface {
@@ -55,6 +62,11 @@ func (c *ClamAV) postScanCb(fd int, result clamav.ErrorCode, virname string, con
 	if c.debug {
 		logrus.Debugf("post scan callback for %s: fd=%d result=%s virus=%s", context, fd, clamav.StrError(result), virname)
 	}
+	switch context.(type) {
+	case *ClamAVResult:
+		pAr := context.(*ClamAVResult)
+		pAr.Virus = virname
+	}
 
 	return clamav.Clean
 }
@@ -62,6 +74,13 @@ func (c *ClamAV) postScanCb(fd int, result clamav.ErrorCode, virname string, con
 func (c *ClamAV) hashCb(fd int, size uint64, md5 []byte, virname string, context interface{}) {
 	if c.debug {
 		logrus.Debugf("hash callback for %s: fd=%d size=%d md5=%s virus=%s", context, fd, size, md5, virname)
+	}
+	switch context.(type) {
+	case *ClamAVResult:
+		pAr := context.(*ClamAVResult)
+		if pAr.Hash == "" {
+			pAr.Hash = string(md5)
+		}
 	}
 
 	return
@@ -95,7 +114,7 @@ func NewClamAV(dbDir string, debug bool) (*ClamAV, error) {
 	return &clam, nil
 }
 
-func (c *ClamAV) ScanMem(mem []byte) (string, error) {
+func (c *ClamAV) ScanMem(mem []byte) (*ClamAVResult, error) {
 	fmap := clamav.OpenMemory(mem)
 	defer clamav.CloseMemory(fmap)
 	engine := c.engine
@@ -109,9 +128,11 @@ func (c *ClamAV) ScanMem(mem []byte) (string, error) {
 	return "", err
 }
 
-func (c *ClamAV) ScanFile(filename string) (string, error) {
+func (c *ClamAV) ScanFile(filename string) (*ClamAVResult, error) {
 	engine := c.engine
-	virus, _, err := engine.ScanFileCb(filename, clamav.ScanStdopt|clamav.ScanAllmatches, filename)
+	ar := new(ClamAVResult)
+	ar.name = filename
+	virus, _, err := engine.ScanFileCb(filename, clamav.ScanStdopt|clamav.ScanAllmatches, ar)
 	if virus != "" {
 		return virus, nil
 	} else if err != nil {
@@ -134,7 +155,6 @@ func (c *ClamAV) ScanDir(dir string, ctx context.Context) <-chan *ClamAVResult {
 				}
 
 				if fi.Mode().IsRegular() {
-					r, err := c.ScanFile(filename)
 					logrus.Println(filename, " ", r, " ", err)
 					if err == nil && r != "" {
 						outChn <- &ClamAVResult{
