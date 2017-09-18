@@ -1,4 +1,4 @@
-FROM docker.ffan.nslookup.site/malice
+FROM ffg/malice
 
 LABEL maintainer "https://github.com/chennqqi"
 
@@ -7,9 +7,15 @@ LABEL malice.plugin.category="av"
 LABEL malice.plugin.mime="*"
 LABEL malice.plugin.docker.engine="*"
 
+
 COPY . /go/src/github.com/chennqqi/clamav-docker
+
+RUN apk --update add --no-cache clamav clamav-dev ca-certificates \
   && echo "Building avscan Go binary..." \
-  && cd /go/src/github.com/malice-plugins/clamav \
+  && cd /go/src/golang.org/x/ \
+  && git clone https://github.com/golang/crypto \
+  && git clone https://github.com/golang/sys \
+  && cd /go/src/github.com/chennqqi/clamav-docker \
   && export GOPATH=/go \
   && go version \
   && go get \
@@ -20,7 +26,7 @@ COPY . /go/src/github.com/chennqqi/clamav-docker
 # Update ClamAV Definitions
 RUN mkdir -p /opt/malice \
   && chown malice /opt/malice \
-  && freshclam
+  && avscan update
 
 # Add EICAR Test Virus File to malware folder
 ADD http://www.eicar.org/download/eicar.com.txt /malware/EICAR
@@ -29,6 +35,7 @@ RUN chown malice -R /malware
 
 WORKDIR /malware
 
-ENTRYPOINT ["avscan"]
+CMD ["avscan"]
+#ENTRYPOINT ["avscan"]
 # ENTRYPOINT ["su-exec","malice","/sbin/tini","--","avscan"]
 CMD ["--help"]
