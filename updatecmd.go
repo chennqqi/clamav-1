@@ -36,7 +36,12 @@ func (p *updateCmd) SetFlags(*flag.FlagSet) {
 func (p *updateCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	ctx := context.TODO()
 	fmt.Println("Updating ClamAV...")
-	fmt.Println(utils.RunCommand(ctx, "freshclam"))
+	updateTxt, err := utils.RunCommand(ctx, "freshclam")
+	if err != nil{
+		fmt.Println(updateTxt, err)
+	} else {
+		fmt.Println(updateTxt)
+	}
 	// Update UPDATED file
 	t := time.Now().Format("20060102")
 	ioutil.WriteFile("/opt/malice/UPDATED", []byte(t), 0644)

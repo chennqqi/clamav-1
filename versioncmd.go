@@ -30,7 +30,7 @@ func (p *versionCmd) SetFlags(*flag.FlagSet) {
 
 func (p *versionCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
 	fmt.Println("version:", Version)
-	update, _ := ioutil.ReadFile("/opt/malice/UPDATE")
+	update, _ := ioutil.ReadFile("/opt/malice/UPDATED")
 	fmt.Println("update:", string(update))
 	return subcommands.ExitSuccess
 }
