@@ -49,6 +49,7 @@ func (s *Web) scanFile(c *gin.Context) {
 	}
 	defer src.Close()
 	tmpDir, err := ioutil.TempDir("/dev/shm", "file")
+	defer os.Remove(tmpDir)
 	if err != nil {
 	}
 	f, err := ioutil.TempFile(tmpDir, "scan_")
@@ -154,12 +155,12 @@ func (s *Web) scanZip(c *gin.Context) {
 		return
 	}
 	defer src.Close()
-	f, err := ioutil.TempFile("/dev/shm/zip", "zip_")
-	defer os.Remove(f.Name())
+	f, err := ioutil.TempFile("/dev/shm", "zip_")
 	if err != nil {
-		c.String(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
+		c.String(http.StatusBadRequest, fmt.Sprintf("new tmp file err: %s", err.Error()))
 		return
 	}
+	defer os.Remove(f.Name())
 	io.Copy(f, src)
 	f.Close()
 
@@ -169,12 +170,15 @@ func (s *Web) scanZip(c *gin.Context) {
 			fmt.Sprintf("save zip file err: %s", err.Error()))
 		return
 	}
+	defer os.Remove(tmpDir)
 
 	if err = utils.Unzip(f.Name(), tmpDir); err != nil {
 		c.String(http.StatusInternalServerError,
 			fmt.Sprintf("unzip zip file err: %s", err.Error()))
 		return
 	}
+	defer os.RemoveAll(tmpDir)
+
 	//TODO:
 	r, _ := s.scanDir(tmpDir, to)
 	c.JSON(200, r)
