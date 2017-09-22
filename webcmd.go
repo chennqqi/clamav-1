@@ -9,12 +9,8 @@ import (
 )
 
 type webCmd struct {
-	w      Web
 	port   int
-	fileto string
 	zipto  string
-
-	clamav *ClamAV
 }
 
 func (p *webCmd) Name() string {
@@ -39,8 +35,11 @@ func (p *webCmd) Execute(context.Context, *flag.FlagSet, ...interface{}) subcomm
 	if err != nil {
 		to, _ = time.ParseDuration("60s")
 	}
-	p.w.fileto = to
-	p.w.zipto = to
-	p.w.Run(p.port)
+
+	var w Web
+	w.clav,_ = NewClamAV("", false)
+	w.fileto = to
+	w.zipto = to
+	w.Run(p.port)
 	return subcommands.ExitSuccess
 }

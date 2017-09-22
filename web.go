@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
+	"strings"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -61,8 +62,10 @@ func (s *Web) scanFile(c *gin.Context) {
 	io.Copy(f, src)
 	f.Close()
 
-	r, _ := s.scanDir(f.Name(), to)
-	c.JSON(200, r)
+	r, _ := s.scanDir(tmpDir, to)
+	c.Header("Content-type", "application/json")
+	r1 := strings.Replace(r, f.Name(), upf.Filename, -1)
+	c.String(200, r1)
 }
 
 func Unzip(src, dest string) error {
@@ -181,7 +184,9 @@ func (s *Web) scanZip(c *gin.Context) {
 
 	//TODO:
 	r, _ := s.scanDir(tmpDir, to)
-	c.JSON(200, r)
+	c.Header("Content-type", "application/json")
+	r1 := strings.Replace(r, tmpDir, "", -1)
+	c.String(200, r1)
 }
 
 func (s *Web) scanDir(dir string, to time.Duration) (string, error) {
