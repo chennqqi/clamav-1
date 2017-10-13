@@ -4,13 +4,13 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/json"
-	"strings"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,9 +18,10 @@ import (
 )
 
 type Web struct {
-	fileto time.Duration
-	zipto  time.Duration
-	clav   *ClamAV
+	fileto   time.Duration
+	zipto    time.Duration
+	callback string
+	clav     *ClamAV
 }
 
 func (s *Web) version(c *gin.Context) {
@@ -65,6 +66,7 @@ func (s *Web) scanFile(c *gin.Context) {
 	r, _ := s.scanDir(tmpDir, to)
 	c.Header("Content-type", "application/json")
 	r1 := strings.Replace(r, f.Name(), upf.Filename, -1)
+	s.doCallback(c, r1)
 	c.String(200, r1)
 }
 
@@ -186,7 +188,21 @@ func (s *Web) scanZip(c *gin.Context) {
 	r, _ := s.scanDir(tmpDir, to)
 	c.Header("Content-type", "application/json")
 	r1 := strings.Replace(r, tmpDir, "", -1)
+	s.doCallback(c, r1)
 	c.String(200, r1)
+}
+
+func (s *Web) doCallback(c *gin.Context, r string) {
+	callback := c.Query("callback")
+	if callback == "" {
+		callback = s.callback
+	}
+	if callback != "" {
+		go func(r string) {
+			body := strings.NewReader(r)
+			http.Post(callback, "application/json", body)
+		}(r)
+	}
 }
 
 func (s *Web) scanDir(dir string, to time.Duration) (string, error) {
