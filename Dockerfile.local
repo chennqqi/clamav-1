@@ -1,0 +1,35 @@
+FROM alpine:3.7
+LABEL maintainer "q@shellpub.com"
+
+ARG app_name=avscan
+
+RUN apk --update add --no-cache clamav clamav-dev ca-certificates
+
+RUN set -x \
+  && echo "===> Add malice user and malware folder..." \
+  && addgroup malice \
+  && adduser -S -G malice malice \
+  && mkdir /malware 
+
+RUN apk --update add ca-certificates
+RUN apk --update add --no-cache -t .build-deps \
+	tini \
+	su-exec \
+  && echo "===> Building avscan daemon..." \
+  && apk del --purge .build-deps
+
+## fix golang link
+RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
+
+# Add avscan 
+
+COPY VERSION /malware/
+COPY ${app_name} /malware/
+RUN chmod +x /malware/${app_name}
+RUN chown -R malice:malice /malware
+USER malice
+WORKDIR /malware
+
+ENTRYPOINT ["./avscan"]
+#ENTRYPOINT ["su-exec","malice","/sbin/tini","--","avscan"]
+CMD ["--help"]
