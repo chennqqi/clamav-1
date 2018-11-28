@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"strings"
 	"os"
+	"net"
 	"time"
 
 	"github.com/chennqqi/goutils/closeevent"
@@ -15,12 +17,7 @@ import (
 type webCmd struct {
 	port     int
 	zipto    string
-	callback string
-
-	w        *Web
-	port     int
-	fileto   string
-	zipto    string
+	fileto    string
 	callback string
 	datadir  string
 	indexdir string
@@ -77,8 +74,8 @@ func (p *webCmd) Execute(context.Context, *flag.FlagSet, ...interface{}) subcomm
 
 	var w Web
 	w.clav, _ = NewClamAV("", false)
-	w.fileto = utime.Duration(to)
-	w.zipto = utime.Duration(to)
+	w.fileto = utime.Duration(fileTo)
+	w.zipto = utime.Duration(zipTo)
 	w.callback = p.callback
 	ctx, cancel := context.WithCancel(context.Background())
 	go w.Run(p.port, ctx)

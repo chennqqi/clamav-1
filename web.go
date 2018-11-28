@@ -19,6 +19,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/malice-plugins/go-plugin-utils/utils"
 )
+const (
+	PERSIST_LISTKEY_NAME = "__HMBD_PERSIST"
+)
 
 type Web struct {
 	fileto utime.Duration
@@ -42,7 +45,7 @@ type Job struct {
 	Cb   string         `json:"cb"`
 	Dir  string         `json:"dir"`
 	Name string         `json:"name"`
-	Tid  string         `json:"tid"`
+	File string 	`json:"file"`
 	To   utime.Duration `json:"to"`
 }
 
@@ -91,8 +94,8 @@ __FOR_LOOP:
 					fmt.Println("[scanRoute] POP ERROR:", err)
 					continue
 				}
-				r, _ := s.scanDir(tmpDir, to)
-				r1 := strings.Replace(r, f.Name(), upf.Filename, -1)
+				r, _ := s.scanDir(j.Dir, time.Duration(j.To))
+				r1 := strings.Replace(r, j.File, j.Name, -1)
 				s.doCallback(j.Cb, r1)
 				os.RemoveAll(j.Dir)
 			}
@@ -113,9 +116,9 @@ func (s *Web) scanFile(c *gin.Context) {
 	to := s.fileto
 	timeout, ok := c.GetQuery("timeout")
 	if ok {
-		tto, err = time.ParseDuration(timeout)
+		tto, err := time.ParseDuration(timeout)
 		if err == nil {
-			to = utime.Duration(s.fileto)
+			to = utime.Duration(tto)
 		}
 	}
 
@@ -159,14 +162,17 @@ func (s *Web) scanFile(c *gin.Context) {
 	io.Copy(f, src)
 	f.Close()
 
-	cb, exist := c.GetQuery("callback")
-	if exist {
+	cb, _ := c.GetQuery("callback")
+	if cb == "" {
+		cb = s.callback
+	}
+	if cb != "" {
 		list := s.list
 		var j Job
 		j.Cb = cb
 		j.Dir = tmpDir
 		j.Name = upf.Filename
-		j.Tid = 0
+		j.File = f.Name()
 		j.To = to
 		pending, err := list.Push(&j)
 		if err != nil {
@@ -188,10 +194,9 @@ func (s *Web) scanFile(c *gin.Context) {
 		defer os.Remove(tmpDir)
 		defer os.Remove(f.Name())
 
-		r, _ := s.scanDir(tmpDir, to)
+		r, _ := s.scanDir(tmpDir, time.Duration(to))
 		c.Header("Content-type", "application/json")
 		r1 := strings.Replace(r, f.Name(), upf.Filename, -1)
-		s.doCallback(c, r1)
 		c.String(200, r1)
 	}
 }
@@ -283,7 +288,7 @@ func Unzip(src, dest string) error {
 	return nil
 }
 
-func (s *Web) Run(port int) {
+func (s *Web) Run(port int, ctx context.Context) error  {
 	scanctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.scanQuit = make(chan struct{})
@@ -315,9 +320,9 @@ func (s *Web) scanZip(c *gin.Context) {
 	to := s.zipto
 	timeout, ok := c.GetQuery("timeout")
 	if ok {
-		to, err = time.ParseDuration(timeout)
-		if err != nil {
-			to = s.zipto
+		tto, err := time.ParseDuration(timeout)
+		if err == nil {
+			to = utime.Duration(tto)
 		}
 	}
 
@@ -351,11 +356,18 @@ func (s *Web) scanZip(c *gin.Context) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	cb, _ := c.GetQuery("callback")
+	if cb == "" {
+		cb = s.callback
+	}
+
 	//TODO:
-	r, _ := s.scanDir(tmpDir, to)
+	r, _ := s.scanDir(tmpDir, time.Duration(to))
 	c.Header("Content-type", "application/json")
 	r1 := strings.Replace(r, tmpDir, "", -1)
-	s.doCallback(c, r1)
+	if cb != "" {
+		s.doCallback(cb, r1)
+	}
 	c.String(200, r1)
 }
 
@@ -369,20 +381,7 @@ func (s *Web) doCallback(cb string, r string) {
 		}
 		io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
-	}(r, callback)
-}
-
-func (s *Web) doCallback(c *gin.Context, r string) {
-	callback := c.Query("callback")
-	if callback == "" {
-		callback = s.callback
-	}
-	if callback != "" {
-		go func(r string) {
-			body := strings.NewReader(r)
-			http.Post(callback, "application/json", body)
-		}(r)
-	}
+	}(r, cb)
 }
 
 func (s *Web) scanDir(dir string, to time.Duration) (string, error) {
@@ -400,4 +399,14 @@ func (s *Web) scanDir(dir string, to time.Duration) (string, error) {
 	}
 	txt, err := json.Marshal(results)
 	return string(txt), err
+}
+
+func (s *Web) queued(c *gin.Context) {
+	list := s.list
+	l, err := list.Len()
+	if err != nil {
+		c.String(400, "%v", err)
+		return
+	}
+	c.String(200, "%d", l)
 }
