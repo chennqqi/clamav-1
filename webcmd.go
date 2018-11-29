@@ -5,6 +5,7 @@ import (
 	"flag"
 	"strings"
 	"os"
+	"fmt"
 	"net"
 	"time"
 
@@ -72,7 +73,11 @@ func (p *webCmd) Execute(context.Context, *flag.FlagSet, ...interface{}) subcomm
 		}
 	}
 
-	var w Web
+	w, err := NewWeb(p.datadir, p.indexdir)
+	if err != nil {
+		fmt.Println("new web error:", err)
+		return subcommands.ExitFailure
+	}
 	w.clav, _ = NewClamAV("", false)
 	w.fileto = utime.Duration(fileTo)
 	w.zipto = utime.Duration(zipTo)
