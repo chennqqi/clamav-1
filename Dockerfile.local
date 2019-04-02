@@ -1,4 +1,4 @@
-FROM alpine:3.7
+FROM alpine
 LABEL maintainer "q@shellpub.com"
 
 ARG app_name=avscan
@@ -24,11 +24,13 @@ RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
 # Add avscan 
 
 COPY VERSION /malware/
-COPY ${app_name} /malware/
-RUN chmod +x /malware/${app_name} && chown -R malice:malice /malware && /malware/avscan update
-USER malice
+COPY ${app_name} /usr/bin/
+RUN  avscan update && touch /var/lib/clamav/clamd-socket
+
+
+#USER malice
 WORKDIR /malware
 
-ENTRYPOINT ["./avscan"]
+ENTRYPOINT ["avscan"]
 #ENTRYPOINT ["su-exec","malice","/sbin/tini","--","avscan"]
 CMD ["--help"]

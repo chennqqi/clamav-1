@@ -26,3 +26,6 @@ clamav-docker
 
 *.bu
 .circleci/build_num
+
+avscan
+lessie.x86
